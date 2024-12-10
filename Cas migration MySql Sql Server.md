@@ -180,6 +180,3 @@ EXEC msdb.dbo.sp_send_dbmail
 2. Les données seront transférées de MySQL vers SQL Server.
 3. Vous recevrez un email de confirmation une fois le transfert terminé.
 
----
-
-Si vous avez besoin d’ajustements ou de clarifications, faites-le-moi savoir ! 😊
