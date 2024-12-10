@@ -180,3 +180,81 @@ EXEC msdb.dbo.sp_send_dbmail
 2. Les données seront transférées de MySQL vers SQL Server.
 3. Vous recevrez un email de confirmation une fois le transfert terminé.
 
+---
+# Traitement de conversions de dates
+
+Oui, si la colonne **`datefabrication`** dans la source est une chaîne de caractères, vous devez la convertir en **type date** avant de l'insérer dans la table destination. SQL Server attend que la colonne **`datefabrication`** de la table destination soit au format **`DATE`**.
+
+---
+
+### **Options pour gérer la conversion de date**
+
+#### **Option 1 : Convertir en date directement dans MySQL**
+Si vous pouvez modifier la requête MySQL, il est préférable de convertir la chaîne de caractères en format date au moment de l'export. Voici un exemple avec une fonction MySQL :
+
+```sql
+SELECT id, nom, STR_TO_DATE(datefabrication, '%Y-%m-%d') AS datefabrication
+FROM Produit;
+```
+
+- **`STR_TO_DATE`** :
+  - Cette fonction convertit une chaîne de caractères en date selon un format spécifique (par exemple, `%Y-%m-%d` pour `2023-12-10`).
+
+**Mise à jour du script PowerShell :**
+```powershell
+# Export des données depuis MySQL avec conversion
+$data = & $mysqlPath --host=$server --user=$user --password=$password `
+   --database=$database -e "SELECT id, nom, STR_TO_DATE(datefabrication, '%Y-%m-%d') AS datefabrication FROM $table 2>$null"
+```
+
+---
+
+#### **Option 2 : Convertir en date dans SQL Server lors de l'insertion**
+Si vous ne pouvez pas modifier la requête MySQL, vous pouvez convertir la chaîne en date directement dans SQL Server à l'aide de la fonction **`CONVERT`** ou **`CAST`** lors de l'insertion.
+
+**Exemple avec SQL Server :**
+```sql
+INSERT INTO dbo.Produit (id, nom, datefabrication)
+VALUES (1, 'Produit A', CONVERT(DATE, '2023-12-10', 120));
+```
+
+- **`CONVERT(DATE, <string>, 120)`** :
+  - Le troisième argument (`120`) correspond au format SQL standard `yyyy-mm-dd`.
+
+**Mise à jour dans le script PowerShell :**
+Modifiez la section qui génère les requêtes pour inclure la conversion SQL Server :
+```powershell
+$query = @"
+INSERT INTO dbo.$sqlTable (id, nom, datefabrication)
+VALUES ($($columns[0]), '$($columns[1])', CONVERT(DATE, '$($columns[2])', 120));
+"@
+```
+
+---
+
+#### **Option 3 : Valider et convertir en PowerShell**
+Vous pouvez également gérer la conversion dans PowerShell avant d'insérer les données. Cela vous permet de contrôler les données et de gérer les erreurs.
+
+**Exemple dans PowerShell :**
+```powershell
+# Vérifier et convertir la date
+$dateFabrication = $columns[2]
+if (-not [datetime]::TryParseExact($dateFabrication, 'yyyy-MM-dd', $null, [System.Globalization.DateTimeStyles]::None, [ref]$null)) {
+    Write-Error "La date de fabrication $dateFabrication n'est pas valide."
+} else {
+    $query = @"
+INSERT INTO dbo.$sqlTable (id, nom, datefabrication)
+VALUES ($($columns[0]), '$($columns[1])', CONVERT(DATE, '$dateFabrication', 120));
+"@
+}
+```
+
+---
+
+### **Recommandation**
+1. **Privilégiez la conversion dans MySQL** si possible, car cela simplifie les étapes dans SQL Server.
+2. Si la conversion dans MySQL n’est pas possible, utilisez la fonction **`CONVERT`** dans SQL Server lors de l’insertion.
+3. En dernier recours, réalisez la conversion dans PowerShell pour garder un contrôle total.
+
+
+
