@@ -62,7 +62,7 @@ END
 ### **Étape 3 : Exécuter un script PowerShell pour transférer les données (Step 3)**
 
 #### **Créer le fichier PowerShell : `TransferData.ps1`**
-1. Placez ce script dans un fichier PowerShell à l’emplacement suivant : `C:\Path\To\TransferData.ps1`.
+1. Placez ce script dans un fichier PowerShell à l’emplacement suivant : `C:\temp\Transferdata.ps1`.
 
 ```powershell
 # Configuration
