@@ -124,7 +124,7 @@ try {
 - **Type : PowerShell**
 - **Command :**
   ```powershell
-  powershell.exe -ExecutionPolicy Bypass -File "C:\Path\To\TransferData.ps1"
+  powershell.exe -ExecutionPolicy Bypass -File "C:\temp\Transferdata.ps1"
   ```
 - **Step Name : Transférer les données MySQL vers SQL Server**
 
