@@ -78,31 +78,46 @@ $sqlTable = "Produit"
 
 # Export des données depuis MySQL
 $data = & $mysqlPath --host=$server --user=$user --password=$password `
-   --database=$database -e "SELECT id, nom, datefabrication FROM $table 2>$null"
+   --database=$database -e "SELECT id, nom, datefabrication FROM $table" 2>$null
+
+# Vérification des données récupérées
+if (!$data) {
+    Write-Error "Aucune donnée récupérée depuis MySQL."
+    exit
+}
 
 # Diviser les données en lignes
 $dataRows = $data -split "`n" | Where-Object { $_ -ne "" }
 
-# Activer IDENTITY_INSERT pour la table cible
-Invoke-Sqlcmd -ServerInstance $sqlServer -Database $sqlDatabase `
-    -Query "SET IDENTITY_INSERT dbo.$sqlTable ON;" -TrustServerCertificate
+# Vérification si des données existent
+if ($dataRows.Count -le 1) {
+    Write-Error "Aucune donnée valide à insérer dans SQL Server."
+    exit
+}
 
-try {
-    foreach ($row in $dataRows[1..($dataRows.Count - 1)]) {
-        $columns = $row -split "`t"
-        $query = @"
+# Construction de la commande pour insérer les données avec IDENTITY_INSERT
+$queryStart = "BEGIN TRANSACTION; SET IDENTITY_INSERT dbo.$sqlTable ON;"
+$queryEnd = "SET IDENTITY_INSERT dbo.$sqlTable OFF; COMMIT TRANSACTION;"
+
+# Boucle pour créer les requêtes d'insertion
+$queryInsert = ""
+foreach ($row in $dataRows[1..($dataRows.Count - 1)]) {
+    $columns = $row -split "`t"
+    $queryInsert += @"
 INSERT INTO dbo.$sqlTable (id, nom, datefabrication)
 VALUES ($($columns[0]), '$($columns[1])', '$($columns[2])');
 "@
-        Invoke-Sqlcmd -ServerInstance $sqlServer -Database $sqlDatabase `
-            -Query $query -TrustServerCertificate
-    }
-} catch {
-    Write-Error "Erreur : $_"
-} finally {
-    Invoke-Sqlcmd -ServerInstance $sqlServer -Database $sqlDatabase `
-        -Query "SET IDENTITY_INSERT dbo.$sqlTable OFF;" -TrustServerCertificate
 }
+
+# Exécution de la commande complète
+try {
+    Invoke-Sqlcmd -ServerInstance $sqlServer -Database $sqlDatabase `
+        -Query "$queryStart $queryInsert $queryEnd" -TrustServerCertificate
+    Write-Host "Données insérées avec succès dans SQL Server."
+} catch {
+    Write-Error "Erreur lors de l'insertion : $_"
+}
+
 ```
 
 #### **Ajouter dans le Job SQL Server :**
